@@ -1,47 +1,60 @@
 package org.openmrs.module.interop.api.advice;
 
+import ca.uhn.fhir.context.FhirContext;
 import org.openmrs.Encounter;
 import org.openmrs.Patient;
-import org.openmrs.module.fhir2.api.translators.PatientTranslator;
+import org.openmrs.module.fhir2.api.FhirPatientService;
+import org.openmrs.module.interop.FhirConverterUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.aop.AfterReturningAdvice;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 
 import java.lang.reflect.Method;
 
+@Component("patientCreationAdvice")
 public class PatientCreationAdvice implements AfterReturningAdvice {
 	
 	@Autowired
-	private PatientTranslator translator;
-
+	private FhirPatientService fhirPatientService;
+	
 	private static final Logger LOGGER = LoggerFactory.getLogger(PatientCreationAdvice.class);
 	
 	@Override
 	public void afterReturning(Object o, Method method, Object[] args, Object o1) throws Throwable {
-		
 		if (method.getName().equals("saveEncounter")) {
-			LOGGER.error("SAVING ENCOUNTER");
 			Encounter encounter = (Encounter) args[0];
 			if (encounter != null) {
-				LOGGER.error("SAVED PATIENT " + encounter.getUuid());
-				LOGGER.error("SAVED PATIENT " + encounter.getEncounterType().getName());
-				Patient patient1 = encounter.getPatient();
-				if (translator == null) {
-					LOGGER.error("translator is a null object +++++++++++++");
+				LOGGER.error("Intercepting hiv enrolment for " + encounter.getPatient().getUuid());
+				convertToFhir(encounter.getPatient());
+				if (this.fhirPatientService == null) {
+					LOGGER.error("***************** PATIENT SERVICE IS NULL");
 				} else {
-					LOGGER.error("Translator is not null  ================");
-				}
-				org.hl7.fhir.r4.model.Patient translated = translator.toFhirResource(patient1);
-				LOGGER.error("AFTER HITTING TRANSLATOR");
-				if (translated != null) {
-					LOGGER.error("fhir patient uuid " + translated.getId());
+					LOGGER.error("================= PATIENT SERVICE IS NOT NULL");
+					org.hl7.fhir.r4.model.Patient fhirPatient = this.fhirPatientService
+					        .get(encounter.getPatient().getUuid());
+					LOGGER.error("the fhir patient " + fhirPatient.getBirthDate());
 				}
 			}
 			
 		}
-		if (method.getName().equals("saveEncounter")) {
-			LOGGER.error("SAVING OBS");
+	}
+	
+	public static void convertToFhir(Patient patient) {
+		FhirContext fhirContext = FhirContext.forR4();
+		String username = "admin";
+		String password = "Admin123";
+		String serverUrl = "http://localhost:8080/openmrs/ws/fhir2/R4";
+		
+		FhirConverterUtil converterUtil = new FhirConverterUtil(serverUrl, username, password, fhirContext);
+		
+		final String fhirUrl = "/Patient/" + patient.getUuid();
+		org.hl7.fhir.r4.model.Patient resource = (org.hl7.fhir.r4.model.Patient) converterUtil.fetchFhirResource(fhirUrl);
+		if (resource == null) {
+			LOGGER.error("RESOURCE IS EMPTY %%%%%");
+		} else {
+			LOGGER.error("SEND THI RESOURCE TO OpenHIM " + resource.getId());
 		}
 	}
 }
