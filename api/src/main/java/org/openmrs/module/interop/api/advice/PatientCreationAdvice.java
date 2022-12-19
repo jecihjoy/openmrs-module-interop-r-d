@@ -4,6 +4,7 @@ import ca.uhn.fhir.context.FhirContext;
 import org.openmrs.Encounter;
 import org.openmrs.Patient;
 import org.openmrs.module.fhir2.api.FhirPatientService;
+import org.openmrs.module.interop.EventBus.EventEngine;
 import org.openmrs.module.interop.FhirConverterUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,6 +12,7 @@ import org.springframework.aop.AfterReturningAdvice;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import javax.jms.Destination;
 import java.lang.reflect.Method;
 
 @Component("patientCreationAdvice")
@@ -24,6 +26,9 @@ public class PatientCreationAdvice implements AfterReturningAdvice {
 	@Override
 	public void afterReturning(Object o, Method method, Object[] args, Object o1) throws Throwable {
 		if (method.getName().equals("saveEncounter")) {
+			EventEngine eventEngine = new EventEngine();
+			Destination destination = eventEngine.getDestination("patient-queue");
+			eventEngine.fireEvent(destination, args[0]);
 			Encounter encounter = (Encounter) args[0];
 			if (encounter != null) {
 				LOGGER.error("Intercepting hiv enrolment for " + encounter.getPatient().getUuid());
