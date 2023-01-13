@@ -210,7 +210,7 @@
 
         <fhir2Version>1.4.0</fhir2Version>
         <hapifhirVersion>4.2.0</hapifhirVersion>
-        <openmrsPlatformVersion>2.3.4</openmrsPlatformVersion>
+        <openmrsPlatformVersion>2.3.3</openmrsPlatformVersion>
         <openmrsPlatformToolsVersion>2.4.0</openmrsPlatformToolsVersion>
     </properties>
 </project>
